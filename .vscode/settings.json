@@ -1,0 +1,10 @@
+{
+  "C_Cpp.clang_format_fallbackStyle": "Mozilla",
+  "editor.formatOnSave": true,
+  "glsllint.glslangValidatorArgs": "--target-env vulkan1.2",
+  "editor.renderWhitespace": "all",
+  "files.associations": {
+    "git-rebase-todo": "git-rebase",
+    "stdexcept": "cpp"
+  }
+}

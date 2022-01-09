@@ -1,0 +1,8 @@
+{
+  "Lox-namespace": {
+    "scope": "cpp",
+    "prefix": "lox",
+    "body": ["namespace Lox {", "    $1", "} // namespace Lox"],
+    "description": "Adds Lox namespace"
+  }
+}
