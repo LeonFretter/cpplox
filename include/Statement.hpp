@@ -19,15 +19,17 @@ public:
 
 using Stmt = std::unique_ptr<Statement>;
 
-class PrintStatement;
+class BlockStatement;
 class ExpressionStatement;
+class PrintStatement;
 class VarDeclarationStatement;
 
 class StatementVisitor
 {
 public:
-  virtual void visitPrintStatement(PrintStatement const&) = 0;
+  virtual void visitBlockStatement(BlockStatement const&) = 0;
   virtual void visitExpressionStatement(ExpressionStatement const&) = 0;
+  virtual void visitPrintStatement(PrintStatement const&) = 0;
   virtual void visitVarDeclarationStatement(VarDeclarationStatement const&) = 0;
 
   StatementVisitor() = default;
@@ -52,6 +54,24 @@ public:
 
 private:
   Expr expr;
+};
+
+class BlockStatement : public Statement
+{
+public:
+  std::vector<Stmt> const& statements() const { return _statements; }
+
+  virtual void accept(StatementVisitor& visitor) const override
+  {
+    visitor.visitBlockStatement(*this);
+  }
+
+  BlockStatement(std::vector<Stmt> in_statements)
+    : _statements(std::move(in_statements))
+  {}
+
+private:
+  std::vector<Stmt> _statements;
 };
 
 class ExpressionStatement : public Statement

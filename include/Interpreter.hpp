@@ -15,10 +15,12 @@ class Interpreter
 public:
   void interpret(std::vector<Stmt> const& statements);
 
-  virtual void visitPrintStatement(PrintStatement const& stmt) override;
+  virtual void visitBlockStatement(BlockStatement const& stmt) override;
 
   virtual void visitExpressionStatement(
     ExpressionStatement const& stmt) override;
+
+  virtual void visitPrintStatement(PrintStatement const& stmt) override;
 
   virtual void visitVarDeclarationStatement(
     VarDeclarationStatement const& stmt) override;
@@ -39,10 +41,11 @@ public:
 
   virtual std::any visitUnaryExpression(UnaryExpression const& expr) override;
 
-  Interpreter() = default;
+  Interpreter();
 
 private:
   void execute(Statement const& stmt);
+  void executeBlock(std::vector<Stmt> const&, Env);
 
   Object evaluate(Expression const& expr);
 
@@ -59,7 +62,7 @@ private:
                                   Object const& rhs);
 
 private:
-  Environment env;
+  Env env;
 };
 
 } // namespace Lox

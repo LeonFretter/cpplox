@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <string>
 
 #include "LoxRuntimeError.hpp"
@@ -23,8 +24,12 @@ public:
   void assign(Token name, Object value)
   {
     if (!values.contains(name.lexeme())) {
-      throw LoxRuntimeError{ name,
-                             "Undefined variable '" + name.lexeme() + "'" };
+      if (parent) {
+        parent->assign(name, value);
+      } else {
+        throw LoxRuntimeError{ name,
+                               "Undefined variable '" + name.lexeme() + "'" };
+      }
     } else {
       values.at(name.lexeme()) = value;
     }
@@ -32,15 +37,26 @@ public:
   //   TODO: consider if ref is needed
   Object get(Token name) const
   {
-    try {
+    if (values.contains(name.lexeme())) {
       return values.at(name.lexeme());
-    } catch (std::runtime_error err) {
+    } else if (parent) {
+      return parent->get(name);
+    } else {
       throw LoxRuntimeError{ name, "Undefined variable " + name.lexeme() };
     }
   }
 
+  Environment() = default;
+  Environment(Environment* parent)
+    : parent(parent)
+    , values()
+  {}
+
 private:
+  Environment* parent;
   std::map<std::string, Object> values;
 };
+
+using Env = std::unique_ptr<Environment>;
 
 } // namespace Lox

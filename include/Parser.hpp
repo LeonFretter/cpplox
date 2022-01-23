@@ -14,6 +14,8 @@ public:
   Parser(std::vector<Token> tokens);
 
 private:
+  std::vector<Stmt> block();
+
   Stmt declaration();
   Stmt statement();
   Stmt varDeclaration();

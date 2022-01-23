@@ -15,10 +15,9 @@ Interpreter::interpret(std::vector<Stmt> const& statements)
 }
 
 void
-Interpreter::visitPrintStatement(PrintStatement const& stmt)
+Interpreter::visitBlockStatement(BlockStatement const& stmt)
 {
-  auto val = evaluate(stmt.expression());
-  std::cout << stringify(val) << std::endl;
+  executeBlock(stmt.statements(), std::make_unique<Environment>(env.get()));
 }
 
 void
@@ -28,16 +27,23 @@ Interpreter::visitExpressionStatement(ExpressionStatement const& stmt)
 }
 
 void
+Interpreter::visitPrintStatement(PrintStatement const& stmt)
+{
+  auto val = evaluate(stmt.expression());
+  std::cout << stringify(val) << std::endl;
+}
+
+void
 Interpreter::visitVarDeclarationStatement(VarDeclarationStatement const& stmt)
 {
-  env.define(stmt.name().lexeme(), evaluate(stmt.initializer()));
+  env->define(stmt.name().lexeme(), evaluate(stmt.initializer()));
 }
 
 std::any
 Interpreter::visitAssignmentExpression(AssignmentExpression const& expr)
 {
   auto val = evaluate(expr.value());
-  env.assign(expr.name(), val);
+  env->assign(expr.name(), val);
   return val;
 }
 
@@ -102,7 +108,7 @@ Interpreter::visitLiteralExpression(LiteralExpression const& expr)
 std::any
 Interpreter::visitVariableExpression(VariableExpression const& expr)
 {
-  return env.get(expr.name());
+  return env->get(expr.name());
 }
 
 std::any
@@ -121,10 +127,31 @@ Interpreter::visitUnaryExpression(UnaryExpression const& expr)
   }
 }
 
+Interpreter::Interpreter()
+  : env(std::make_unique<Environment>())
+{}
+
 void
 Interpreter::execute(Statement const& stmt)
 {
   stmt.accept(*this);
+}
+
+void
+Interpreter::executeBlock(std::vector<Stmt> const& statements, Env block_env)
+{
+  env.swap(block_env);
+
+  try {
+    for (auto& stmt : statements) {
+      execute(*stmt);
+    }
+  } catch (std::runtime_error) {
+    env.swap(block_env);
+    return;
+  }
+
+  env.swap(block_env);
 }
 
 Object

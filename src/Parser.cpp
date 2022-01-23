@@ -17,6 +17,19 @@ Parser::Parser(std::vector<Token> tokens)
   , current(0UL)
 {}
 
+std::vector<Stmt>
+Parser::block()
+{
+  auto statements = std::vector<Stmt>{};
+
+  while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
+    statements.push_back(declaration());
+  }
+
+  consume(TokenType::RIGHT_BRACE, "Expect '}' after block.");
+  return statements;
+}
+
 Stmt
 Parser::declaration()
 {
@@ -31,8 +44,10 @@ Parser::statement()
 {
   if (match(TokenType::PRINT))
     return printStatement();
-
-  return expressionStatement();
+  else if (match(TokenType::LEFT_BRACE))
+    return std::make_unique<BlockStatement>(block());
+  else
+    return expressionStatement();
 }
 
 Stmt
