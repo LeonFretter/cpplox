@@ -3,6 +3,9 @@
 #include <iostream>
 #include <vector>
 
+#include <ExpressionPrinter.hpp>
+#include <Interpreter.hpp>
+#include <Parser.hpp>
 #include <Scanner.hpp>
 
 std::vector<char>
@@ -22,27 +25,32 @@ readFromFile(char const* path_str)
   return buffer;
 }
 
+template<typename T>
 void
-run(std::vector<char> const& src)
+run(T const& src)
 {
   auto scanner = Lox::Scanner{ src };
   auto tokens = scanner.scanTokens();
+  auto parser = Lox::Parser{ tokens };
+  auto expr = parser.parse();
 
-  for (auto& token : tokens) {
-    std::cout << token << std::endl;
-  }
+  Lox::ExpressionPrinter{}.print(*expr);
+  std::cout << Lox::Interpreter{}.interpret(*expr) << std::endl;
 }
 
 int
 main(int argc, char** argv)
 {
-  if (argc > 1) {
+  if (argc > 2) {
     std::cout << "Usage: cpplox [file]" << std::endl;
     return EXIT_FAILURE;
-  } else if (argc == 1) {
-    auto buf = readFromFile(argv[0]);
+  } else if (argc == 2) {
+    auto buf = readFromFile(argv[1]);
     run(buf);
   } else {
-    // TODO: run prompt
+    auto line = std::string{};
+    while (std::getline(std::cin, line)) {
+      run(line);
+    }
   }
 }
