@@ -85,7 +85,7 @@ Scanner::scanToken()
         break;
 
       default:
-        throw new std::runtime_error("Unrecognized character");
+        throw std::runtime_error{ "Unrecognized character" };
     }
   }
 }

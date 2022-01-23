@@ -27,30 +27,33 @@ readFromFile(char const* path_str)
 
 template<typename T>
 void
-run(T const& src)
+run(T const& src, Lox::Interpreter& interpreter)
 {
   auto scanner = Lox::Scanner{ src };
   auto tokens = scanner.scanTokens();
   auto parser = Lox::Parser{ tokens };
-  auto expr = parser.parse();
 
-  Lox::ExpressionPrinter{}.print(*expr);
-  std::cout << Lox::Interpreter{}.interpret(*expr) << std::endl;
+  auto statements = parser.parse();
+
+  // Lox::ExpressionPrinter{}.print(*expr);
+
+  interpreter.interpret(statements);
 }
 
 int
 main(int argc, char** argv)
 {
+  auto interpreter = Lox::Interpreter{};
   if (argc > 2) {
     std::cout << "Usage: cpplox [file]" << std::endl;
     return EXIT_FAILURE;
   } else if (argc == 2) {
     auto buf = readFromFile(argv[1]);
-    run(buf);
+    run(buf, interpreter);
   } else {
     auto line = std::string{};
     while (std::getline(std::cin, line)) {
-      run(line);
+      run(line, interpreter);
     }
   }
 }

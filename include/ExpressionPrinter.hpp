@@ -9,23 +9,23 @@ namespace Lox {
 class ExpressionPrinter : public ExpressionVisitor
 {
 public:
-  void print(Expression const& expr) const
+  void print(Expression const& expr)
   {
-    std::cout << expr.accept<std::string>(*this) << std::endl;
+
+    std::cout << std::any_cast<std::string>(expr.accept(*this)) << std::endl;
   }
 
-  virtual std::any visitBinaryExpression(
-    BinaryExpression const& expr) const override
+  virtual std::any visitBinaryExpression(BinaryExpression const& expr) override
   {
     return parenthesize(expr.op().lexeme(), { &expr.lhs(), &expr.rhs() });
   }
   virtual std::any visitGroupingExpression(
-    GroupingExpression const& expr) const override
+    GroupingExpression const& expr) override
   {
     return parenthesize("group", { &expr.expr() });
   }
   virtual std::any visitLiteralExpression(
-    LiteralExpression const& expr) const override
+    LiteralExpression const& expr) override
   {
     auto const& obj = expr.value();
     if (!obj) {
@@ -39,21 +39,22 @@ public:
       return obj.string();
     }
   }
-  virtual std::any visitUnaryExpression(
-    UnaryExpression const& expr) const override
+  // TODO: variableExpression
+
+  virtual std::any visitUnaryExpression(UnaryExpression const& expr) override
   {
     return parenthesize(expr.op().lexeme(), { &expr.rhs() });
   }
 
 private:
   std::string parenthesize(std::string name,
-                           std::vector<Expression const*> expressions) const
+                           std::vector<Expression const*> expressions)
   {
     auto res = std::string{};
     res += "(" + name;
     for (auto* expr : expressions) {
       res += " ";
-      res += expr->accept<std::string>(*this);
+      res += std::any_cast<std::string>(expr->accept(*this));
     }
     res += ")";
 
