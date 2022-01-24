@@ -1,0 +1,6 @@
+if(true == false) {
+    print "Boolean logic is no more.";
+}
+else {
+    print "Boolean logic is still around.";
+}
