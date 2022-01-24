@@ -23,6 +23,8 @@ class BlockStatement;
 class ExpressionStatement;
 class PrintStatement;
 class VarDeclarationStatement;
+class IfStatement;
+class WhileStatement;
 
 class StatementVisitor
 {
@@ -31,6 +33,8 @@ public:
   virtual void visitExpressionStatement(ExpressionStatement const&) = 0;
   virtual void visitPrintStatement(PrintStatement const&) = 0;
   virtual void visitVarDeclarationStatement(VarDeclarationStatement const&) = 0;
+  virtual void visitIfStatement(IfStatement const&) = 0;
+  virtual void visitWhileStatement(WhileStatement const&) = 0;
 
   StatementVisitor() = default;
   StatementVisitor(StatementVisitor const&) = delete;
@@ -90,6 +94,52 @@ public:
 
 private:
   Expr expr;
+};
+
+class IfStatement : public Statement
+{
+public:
+  Expression const& condition() const { return *_condition; }
+  Statement const& thenBranch() const { return *then_branch; }
+  bool hasElseBranch() const { return else_branch.operator bool(); }
+  Statement const& elseBranch() const { return *else_branch; }
+
+  virtual void accept(StatementVisitor& visitor) const override
+  {
+    visitor.visitIfStatement(*this);
+  }
+
+  IfStatement(Expr in_condition, Stmt in_then_branch, Stmt in_else_branch)
+    : _condition(std::move(in_condition))
+    , then_branch(std::move(in_then_branch))
+    , else_branch(std::move(in_else_branch))
+  {}
+
+private:
+  Expr _condition;
+  Stmt then_branch;
+  Stmt else_branch;
+};
+
+class WhileStatement : public Statement
+{
+public:
+  Expression const& condition() const { return *_condition; }
+  Statement const& body() const { return *_body; }
+
+  virtual void accept(StatementVisitor& visitor) const override
+  {
+    visitor.visitWhileStatement(*this);
+  }
+
+  WhileStatement(Expr in_condition, Stmt in_body)
+    : _condition(std::move(in_condition))
+    , _body(std::move(in_body))
+  {}
+
+private:
+  Expr _condition;
+  Stmt _body;
 };
 
 class VarDeclarationStatement : public Statement

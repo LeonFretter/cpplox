@@ -12,6 +12,12 @@ std::vector<char>
 readFromFile(char const* path_str)
 {
   auto path = std::filesystem::path{ path_str };
+
+  if (path.is_relative()) {
+    path = std::filesystem::current_path() / path;
+  } else {
+    path = std::filesystem::canonical(path);
+  }
   auto f = std::ifstream{ path, std::ios::ate };
   if (!f.is_open()) {
     throw std::runtime_error("File could not be opened");
@@ -34,8 +40,6 @@ run(T const& src, Lox::Interpreter& interpreter)
   auto parser = Lox::Parser{ tokens };
 
   auto statements = parser.parse();
-
-  // Lox::ExpressionPrinter{}.print(*expr);
 
   interpreter.interpret(statements);
 }

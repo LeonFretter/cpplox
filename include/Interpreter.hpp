@@ -25,6 +25,10 @@ public:
   virtual void visitVarDeclarationStatement(
     VarDeclarationStatement const& stmt) override;
 
+  virtual void visitIfStatement(IfStatement const&) override;
+
+  virtual void visitWhileStatement(WhileStatement const&) override;
+
   virtual std::any visitAssignmentExpression(
     AssignmentExpression const& expr) override;
 

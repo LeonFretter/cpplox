@@ -39,6 +39,24 @@ Interpreter::visitVarDeclarationStatement(VarDeclarationStatement const& stmt)
   env->define(stmt.name().lexeme(), evaluate(stmt.initializer()));
 }
 
+void
+Interpreter::visitIfStatement(IfStatement const& stmt)
+{
+  if (isTruthy(evaluate(stmt.condition()))) {
+    execute(stmt.thenBranch());
+  } else if (stmt.hasElseBranch()) {
+    execute(stmt.elseBranch());
+  }
+}
+
+void
+Interpreter::visitWhileStatement(WhileStatement const& stmt)
+{
+  while (isTruthy(evaluate(stmt.condition()))) {
+    execute(stmt.body());
+  }
+}
+
 std::any
 Interpreter::visitAssignmentExpression(AssignmentExpression const& expr)
 {
@@ -50,46 +68,66 @@ Interpreter::visitAssignmentExpression(AssignmentExpression const& expr)
 std::any
 Interpreter::visitBinaryExpression(BinaryExpression const& expr)
 {
-  auto lhs = evaluate(expr.lhs());
-  auto rhs = evaluate(expr.rhs());
+  auto op_type = expr.op().type();
 
-  switch (expr.op().type()) {
-    case TokenType::BANG_EQUAL:
-      return Object{ !isEqual(lhs, rhs) };
-    case TokenType::EQUAL_EQUAL:
-      return Object{ isEqual(lhs, rhs) };
-    case TokenType::GREATER:
-      checkNumberOperands(expr.op(), lhs, rhs);
-      return Object{ lhs.number() > rhs.number() };
-    case TokenType::GREATER_EQUAL:
-      checkNumberOperands(expr.op(), lhs, rhs);
-      return Object{ lhs.number() >= rhs.number() };
-    case TokenType::LESS:
-      checkNumberOperands(expr.op(), lhs, rhs);
-      return Object{ lhs.number() < rhs.number() };
-    case TokenType::LESS_EQUAL:
-      checkNumberOperands(expr.op(), lhs, rhs);
-      return Object{ lhs.number() <= rhs.number() };
-    case TokenType::MINUS:
-      checkNumberOperands(expr.op(), lhs, rhs);
-      return Object{ lhs.number() - rhs.number() };
-    case TokenType::PLUS:
-      if (lhs.isNumber() && rhs.isNumber()) {
-        return Object{ lhs.number() + rhs.number() };
-      } else if (lhs.isString() && rhs.isString()) {
-        return Object{ lhs.string() + rhs.string() };
-      } else {
-        throw LoxRuntimeError{ expr.op(),
-                               "Operands must be two numbers or two strings" };
+  if (op_type == TokenType::AND || op_type == TokenType::OR) {
+    auto lhs = evaluate(expr.lhs());
+
+    if (expr.op().type() == TokenType::OR) {
+      if (isTruthy(lhs))
+        return lhs;
+    } else {
+      if (!isTruthy(lhs)) {
+        return lhs;
       }
-    case TokenType::SLASH:
-      checkNumberOperands(expr.op(), lhs, rhs);
-      return Object{ lhs.number() / rhs.number() };
-    case TokenType::STAR:
-      checkNumberOperands(expr.op(), lhs, rhs);
-      return Object{ lhs.number() * rhs.number() };
-    default:
-      return Object::null();
+    }
+
+    return evaluate(expr.rhs());
+
+  } else {
+
+    auto lhs = evaluate(expr.lhs());
+    auto rhs = evaluate(expr.rhs());
+
+    switch (expr.op().type()) {
+      case TokenType::BANG_EQUAL:
+        return Object{ !isEqual(lhs, rhs) };
+      case TokenType::EQUAL_EQUAL:
+        return Object{ isEqual(lhs, rhs) };
+      case TokenType::GREATER:
+        checkNumberOperands(expr.op(), lhs, rhs);
+        return Object{ lhs.number() > rhs.number() };
+      case TokenType::GREATER_EQUAL:
+        checkNumberOperands(expr.op(), lhs, rhs);
+        return Object{ lhs.number() >= rhs.number() };
+      case TokenType::LESS:
+        checkNumberOperands(expr.op(), lhs, rhs);
+        return Object{ lhs.number() < rhs.number() };
+      case TokenType::LESS_EQUAL:
+        checkNumberOperands(expr.op(), lhs, rhs);
+        return Object{ lhs.number() <= rhs.number() };
+      case TokenType::MINUS:
+        checkNumberOperands(expr.op(), lhs, rhs);
+        return Object{ lhs.number() - rhs.number() };
+      case TokenType::PLUS:
+        if (lhs.isNumber() && rhs.isNumber()) {
+          return Object{ lhs.number() + rhs.number() };
+        } else if (lhs.isString() && rhs.isString()) {
+          return Object{ lhs.string() + rhs.string() };
+        } else {
+          throw LoxRuntimeError{
+            expr.op(), "Operands must be two numbers or two strings"
+          };
+        }
+      case TokenType::SLASH:
+        checkNumberOperands(expr.op(), lhs, rhs);
+        return Object{ lhs.number() / rhs.number() };
+      case TokenType::STAR:
+        checkNumberOperands(expr.op(), lhs, rhs);
+        return Object{ lhs.number() * rhs.number() };
+      default:
+        return Object::null();
+    }
   }
 }
 

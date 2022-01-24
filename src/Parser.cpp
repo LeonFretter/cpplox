@@ -42,9 +42,15 @@ Parser::declaration()
 Stmt
 Parser::statement()
 {
-  if (match(TokenType::PRINT))
+  if (match(TokenType::FOR)) {
+    return forStatement();
+  } else if (match(TokenType::IF)) {
+    return ifStatement();
+  } else if (match(TokenType::PRINT))
     return printStatement();
-  else if (match(TokenType::LEFT_BRACE))
+  else if (match(TokenType::WHILE)) {
+    return whileStatement();
+  } else if (match(TokenType::LEFT_BRACE))
     return std::make_unique<BlockStatement>(block());
   else
     return expressionStatement();
@@ -82,6 +88,97 @@ Parser::expressionStatement()
   return std::make_unique<ExpressionStatement>(std::move(expr));
 }
 
+Stmt
+Parser::ifStatement()
+{
+  consume(TokenType::LEFT_PAREN, "Expect '(' after 'if'.");
+  auto condition = expression();
+  consume(TokenType::RIGHT_PAREN, "Expect ')' after 'if' condition");
+
+  auto then_branch = statement();
+  auto else_branch = Stmt{};
+  if (match(TokenType::ELSE)) {
+    else_branch = statement();
+  }
+
+  return std::make_unique<IfStatement>(
+    std::move(condition), std::move(then_branch), std::move(else_branch));
+}
+
+Stmt
+Parser::whileStatement()
+{
+  consume(TokenType::LEFT_PAREN, "Expect '(' after 'while'");
+  auto condition = expression();
+
+  consume(TokenType::RIGHT_PAREN, "Expect ')' after 'while' condition");
+  auto body = statement();
+
+  return std::make_unique<WhileStatement>(std::move(condition),
+                                          std::move(body));
+}
+
+Stmt
+Parser::forStatement()
+{
+  consume(TokenType::LEFT_PAREN, "Expect '(' after 'for'");
+
+  auto initializer = Stmt{};
+  if (!match(TokenType::SEMICOLON)) {
+    if (match(TokenType::VAR)) {
+      initializer = varDeclaration();
+    } else {
+      initializer = expressionStatement();
+    }
+  }
+
+  auto condition = Expr{};
+  if (!check(TokenType::SEMICOLON)) {
+    // there is a condition in front of ';'
+    condition = expression();
+  }
+  consume(TokenType::SEMICOLON, "Expect ';' after loop condition");
+
+  auto incr = Expr{};
+  if (!check(TokenType::RIGHT_PAREN)) {
+    incr = expression();
+  }
+  consume(TokenType::RIGHT_PAREN, "Expect ')' after for clauses.");
+
+  auto body = statement();
+
+  if (incr) {
+    /**
+     * add incr as statement after rest of body
+     * */
+    auto block_body = std::vector<Stmt>{};
+    block_body.push_back(std::move(body));
+    block_body.push_back(
+      std::make_unique<ExpressionStatement>(std::move(incr)));
+
+    body = std::make_unique<BlockStatement>(std::move(block_body));
+  }
+
+  if (!condition) {
+    condition = std::make_unique<LiteralExpression>(Object{ true });
+  }
+  body =
+    std::make_unique<WhileStatement>(std::move(condition), std::move(body));
+
+  if (initializer) {
+    /**
+     * initializer will only be run once as second statement
+     * added to block_body contains the loop.
+     * */
+    auto block_body = std::vector<Stmt>{};
+    block_body.push_back(std::move(initializer));
+    block_body.push_back(std::move(body));
+    body = std::make_unique<BlockStatement>(std::move(block_body));
+  }
+
+  return body;
+}
+
 Expr
 Parser::expression()
 {
@@ -91,7 +188,7 @@ Parser::expression()
 Expr
 Parser::assignment()
 {
-  auto expr = equality();
+  auto expr = orExpr();
 
   if (match(TokenType::EQUAL)) {
     auto val = assignment();
@@ -207,6 +304,36 @@ Parser::primary()
   }
 
   throw std::runtime_error("Expected an expression.");
+}
+
+Expr
+Parser::orExpr()
+{
+  auto expr = andExpr();
+
+  while (match(TokenType::OR)) {
+    auto op = previous();
+    auto rhs = equality();
+    expr =
+      std::make_unique<BinaryExpression>(std::move(expr), op, std::move(rhs));
+  }
+
+  return expr;
+}
+
+Expr
+Parser::andExpr()
+{
+  auto expr = equality();
+
+  while (match(TokenType::AND)) {
+    auto op = previous();
+    auto rhs = equality();
+    expr =
+      std::make_unique<BinaryExpression>(std::move(expr), op, std::move(rhs));
+  }
+
+  return expr;
 }
 
 bool
