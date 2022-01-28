@@ -9,11 +9,15 @@ class LoxRuntimeError : public std::runtime_error
 public:
   LoxRuntimeError(Token token, std::string err)
     : std::runtime_error(err)
-    , token(token)
+    , lexeme(token.lexeme())
+  {}
+  LoxRuntimeError(std::string lexeme, std::string err)
+    : std::runtime_error(err)
+    , lexeme(lexeme)
   {}
 
 private:
-  Token token;
+  std::string lexeme;
 };
 
 } // namespace Lox

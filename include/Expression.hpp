@@ -2,12 +2,16 @@
 
 #include <any>
 #include <memory>
+#include <vector>
 
 #include "Token.hpp"
 
 namespace Lox {
 
 class ExpressionVisitor;
+class Expression;
+
+using Expr = std::unique_ptr<Expression>;
 
 class Expression
 {
@@ -18,12 +22,12 @@ public:
   virtual ~Expression() = default;
 
   virtual std::any accept(ExpressionVisitor&) const = 0;
+  virtual Expr clone() const = 0;
 };
-
-using Expr = std::unique_ptr<Expression>;
 
 class AssignmentExpression;
 class BinaryExpression;
+class CallExpression;
 class GroupingExpression;
 class LiteralExpression;
 class UnaryExpression;
@@ -38,6 +42,7 @@ public:
   virtual std::any visitLiteralExpression(LiteralExpression const&) = 0;
   virtual std::any visitVariableExpression(VariableExpression const&) = 0;
   virtual std::any visitUnaryExpression(UnaryExpression const&) = 0;
+  virtual std::any visitCallExpression(CallExpression const&) = 0;
 
   ExpressionVisitor() = default;
   ExpressionVisitor(ExpressionVisitor const&) = delete;
@@ -54,6 +59,11 @@ public:
   virtual std::any accept(ExpressionVisitor& visitor) const override
   {
     return visitor.visitAssignmentExpression(*this);
+  }
+
+  virtual Expr clone() const override
+  {
+    return std::make_unique<AssignmentExpression>(_name, _value->clone());
   }
 
   AssignmentExpression(Token in_name, Expr in_value)
@@ -78,6 +88,12 @@ public:
     return visitor.visitBinaryExpression(*this);
   }
 
+  virtual Expr clone() const override
+  {
+    return std::make_unique<BinaryExpression>(
+      _lhs->clone(), _op, _rhs->clone());
+  }
+
   BinaryExpression(Expr&& in_lhs, Token in_op, Expr&& in_rhs)
     : _lhs(std::move(in_lhs))
     , _op(std::move(in_op))
@@ -90,6 +106,38 @@ private:
   Expr _rhs;
 };
 
+class CallExpression : public Expression
+{
+public:
+  std::vector<Expr> const& arguments() const { return args; }
+  Expression const& callee() const { return *_callee; }
+
+  virtual std::any accept(ExpressionVisitor& visitor) const override
+  {
+    return visitor.visitCallExpression(*this);
+  }
+
+  virtual Expr clone() const override
+  {
+    auto cloned_args = std::vector<Expr>{};
+    for (auto& arg : args) {
+      cloned_args.push_back(arg->clone());
+    }
+
+    return std::make_unique<CallExpression>(_callee->clone(),
+                                            std::move(cloned_args));
+  }
+
+  CallExpression(Expr in_callee, std::vector<Expr> args)
+    : _callee(std::move(in_callee))
+    , args(std::move(args))
+  {}
+
+private:
+  Expr _callee;
+  std::vector<Expr> args;
+};
+
 class GroupingExpression : public Expression
 {
 public:
@@ -98,6 +146,11 @@ public:
   virtual std::any accept(ExpressionVisitor& visitor) const override
   {
     return visitor.visitGroupingExpression(*this);
+  }
+
+  virtual Expr clone() const override
+  {
+    return std::make_unique<GroupingExpression>(_expr->clone());
   }
 
   GroupingExpression(Expr&& in_expr)
@@ -118,6 +171,11 @@ public:
     return visitor.visitLiteralExpression(*this);
   }
 
+  virtual Expr clone() const override
+  {
+    return std::make_unique<LiteralExpression>(literal);
+  }
+
   LiteralExpression(Object literal)
     : literal(literal)
   {}
@@ -134,6 +192,11 @@ public:
   virtual std::any accept(ExpressionVisitor& visitor) const override
   {
     return visitor.visitVariableExpression(*this);
+  }
+
+  virtual Expr clone() const override
+  {
+    return std::make_unique<VariableExpression>(_name);
   }
 
   VariableExpression(Token in_name)
@@ -153,6 +216,11 @@ public:
   virtual std::any accept(ExpressionVisitor& visitor) const override
   {
     return visitor.visitUnaryExpression(*this);
+  }
+
+  virtual Expr clone() const override
+  {
+    return std::make_unique<UnaryExpression>(_op, _rhs->clone());
   }
 
   UnaryExpression(Token in_op, Expr&& in_rhs)

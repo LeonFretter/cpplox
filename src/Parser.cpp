@@ -33,10 +33,47 @@ Parser::block()
 Stmt
 Parser::declaration()
 {
-  if (match(TokenType::VAR))
+  if (match(TokenType::FUN))
+    return function();
+  else if (match(TokenType::VAR))
     return varDeclaration();
   else
     return statement();
+}
+
+Stmt
+Parser::function()
+{
+  auto name = consume(TokenType::IDENTIFIER, "Expect function name");
+  consume(TokenType::LEFT_PAREN, "Expect '(' after function name");
+  auto params = std::vector<Token>{};
+  if (!check(TokenType::RIGHT_PAREN)) {
+    do {
+      params.push_back(consume(TokenType::IDENTIFIER, "Expect parameter name"));
+    } while (match(TokenType::COMMA));
+  }
+  consume(TokenType::RIGHT_PAREN, "Expect ')' after params");
+
+  consume(TokenType::LEFT_BRACE, "Expect '{' before function body");
+  auto body = block();
+  return std::make_unique<FunctionDeclarationStatement>(
+    name, params, std::move(body));
+}
+
+Stmt
+Parser::returnStatement()
+{
+  // we consume the 'return'
+  previous();
+
+  auto val =
+    static_cast<Expr>(std::make_unique<LiteralExpression>(Object::null()));
+  if (!check(TokenType::SEMICOLON)) {
+    val = expression();
+  }
+
+  consume(TokenType::SEMICOLON, "Expect ';' after return statement.");
+  return std::make_unique<ReturnStatement>(std::move(val));
 }
 
 Stmt
@@ -48,7 +85,9 @@ Parser::statement()
     return ifStatement();
   } else if (match(TokenType::PRINT))
     return printStatement();
-  else if (match(TokenType::WHILE)) {
+  else if (match(TokenType::RETURN)) {
+    return returnStatement();
+  } else if (match(TokenType::WHILE)) {
     return whileStatement();
   } else if (match(TokenType::LEFT_BRACE))
     return std::make_unique<BlockStatement>(block());
@@ -275,7 +314,34 @@ Parser::unary()
     return std::make_unique<UnaryExpression>(op, std::move(rhs));
   }
 
-  return primary();
+  return call();
+}
+
+Expr
+Parser::call()
+{
+  auto expr = primary();
+
+  while (match(TokenType::LEFT_PAREN)) {
+    expr = finishCall(std::move(expr));
+  }
+
+  return expr;
+}
+
+Expr
+Parser::finishCall(Expr callee)
+{
+  auto args = std::vector<Expr>{};
+  if (!check(TokenType::RIGHT_PAREN)) {
+    do {
+      args.push_back(expression());
+    } while (match(TokenType::COMMA));
+  }
+
+  auto paren = consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments");
+
+  return std::make_unique<CallExpression>(std::move(callee), std::move(args));
 }
 
 Expr

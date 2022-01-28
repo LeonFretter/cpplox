@@ -1,6 +1,15 @@
+#include <Globals.hpp>
 #include <Interpreter.hpp>
 
+#include <Callable.hpp>
+
 namespace Lox {
+
+Environment&
+Interpreter::environment()
+{
+  return *env;
+}
 
 void
 Interpreter::interpret(std::vector<Stmt> const& statements)
@@ -17,7 +26,7 @@ Interpreter::interpret(std::vector<Stmt> const& statements)
 void
 Interpreter::visitBlockStatement(BlockStatement const& stmt)
 {
-  executeBlock(stmt.statements(), std::make_unique<Environment>(env.get()));
+  executeBlock(stmt.statements(), std::make_shared<Environment>(env));
 }
 
 void
@@ -55,6 +64,23 @@ Interpreter::visitWhileStatement(WhileStatement const& stmt)
   while (isTruthy(evaluate(stmt.condition()))) {
     execute(stmt.body());
   }
+}
+
+void
+Interpreter::visitFunctionDeclarationStatement(
+  FunctionDeclarationStatement const& stmt)
+{
+  auto func = std::make_unique<LoxFunction>(
+    std::unique_ptr<FunctionDeclarationStatement>{
+      dynamic_cast<FunctionDeclarationStatement*>(stmt.clone().release()) },
+    env);
+  env->define(stmt.name().lexeme(), Object{ std::move(func) });
+}
+
+void
+Interpreter::visitReturnStatement(ReturnStatement const& stmt)
+{
+  throw ReturnValue{ evaluate(stmt.value()) };
 }
 
 std::any
@@ -165,9 +191,23 @@ Interpreter::visitUnaryExpression(UnaryExpression const& expr)
   }
 }
 
+std::any
+Interpreter::visitCallExpression(CallExpression const& expr)
+{
+  auto callee = evaluate(expr.callee());
+  auto args = std::vector<Object>{};
+  for (auto& arg : expr.arguments()) {
+    args.push_back(evaluate(*arg));
+  }
+
+  return callee.callable().call(*this, args);
+}
+
 Interpreter::Interpreter()
   : env(std::make_unique<Environment>())
-{}
+{
+  defineGlobals(*env);
+}
 
 void
 Interpreter::execute(Statement const& stmt)
@@ -176,7 +216,8 @@ Interpreter::execute(Statement const& stmt)
 }
 
 void
-Interpreter::executeBlock(std::vector<Stmt> const& statements, Env block_env)
+Interpreter::executeBlock(std::vector<Stmt> const& statements,
+                          SharedEnv block_env)
 {
   env.swap(block_env);
 
@@ -184,9 +225,9 @@ Interpreter::executeBlock(std::vector<Stmt> const& statements, Env block_env)
     for (auto& stmt : statements) {
       execute(*stmt);
     }
-  } catch (std::runtime_error) {
+  } catch (std::exception& e) {
     env.swap(block_env);
-    return;
+    throw;
   }
 
   env.swap(block_env);
@@ -220,6 +261,8 @@ Interpreter::stringify(Object const& obj)
     return std::to_string(obj.number());
   } else if (obj.isBoolean()) {
     return obj.boolean() == true ? "true" : "false";
+  } else if (obj.isCallable()) {
+    return obj.callable().toString();
   } else {
     // string assumed
     return obj.string();

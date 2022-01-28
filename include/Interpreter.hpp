@@ -13,6 +13,8 @@ class Interpreter
   , public StatementVisitor
 {
 public:
+  Environment& environment();
+
   void interpret(std::vector<Stmt> const& statements);
 
   virtual void visitBlockStatement(BlockStatement const& stmt) override;
@@ -28,6 +30,11 @@ public:
   virtual void visitIfStatement(IfStatement const&) override;
 
   virtual void visitWhileStatement(WhileStatement const&) override;
+
+  virtual void visitFunctionDeclarationStatement(
+    FunctionDeclarationStatement const&) override;
+
+  virtual void visitReturnStatement(ReturnStatement const&) override;
 
   virtual std::any visitAssignmentExpression(
     AssignmentExpression const& expr) override;
@@ -45,11 +52,14 @@ public:
 
   virtual std::any visitUnaryExpression(UnaryExpression const& expr) override;
 
+  virtual std::any visitCallExpression(CallExpression const&) override;
+
+  void executeBlock(std::vector<Stmt> const&, SharedEnv);
+
   Interpreter();
 
 private:
   void execute(Statement const& stmt);
-  void executeBlock(std::vector<Stmt> const&, Env);
 
   Object evaluate(Expression const& expr);
 
@@ -66,7 +76,7 @@ private:
                                   Object const& rhs);
 
 private:
-  Env env;
+  SharedEnv env;
 };
 
 } // namespace Lox

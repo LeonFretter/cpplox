@@ -6,6 +6,9 @@ namespace Lox {
 
 class StatementVisitor;
 
+class Statement;
+using Stmt = std::unique_ptr<Statement>;
+
 class Statement
 {
 public:
@@ -15,9 +18,8 @@ public:
   virtual ~Statement() = default;
 
   virtual void accept(StatementVisitor&) const = 0;
+  virtual Stmt clone() const = 0;
 };
-
-using Stmt = std::unique_ptr<Statement>;
 
 class BlockStatement;
 class ExpressionStatement;
@@ -25,6 +27,8 @@ class PrintStatement;
 class VarDeclarationStatement;
 class IfStatement;
 class WhileStatement;
+class FunctionDeclarationStatement;
+class ReturnStatement;
 
 class StatementVisitor
 {
@@ -35,6 +39,9 @@ public:
   virtual void visitVarDeclarationStatement(VarDeclarationStatement const&) = 0;
   virtual void visitIfStatement(IfStatement const&) = 0;
   virtual void visitWhileStatement(WhileStatement const&) = 0;
+  virtual void visitFunctionDeclarationStatement(
+    FunctionDeclarationStatement const&) = 0;
+  virtual void visitReturnStatement(ReturnStatement const&) = 0;
 
   StatementVisitor() = default;
   StatementVisitor(StatementVisitor const&) = delete;
@@ -50,6 +57,11 @@ public:
   virtual void accept(StatementVisitor& visitor) const override
   {
     visitor.visitPrintStatement(*this);
+  }
+
+  virtual Stmt clone() const override
+  {
+    return std::make_unique<PrintStatement>(expr->clone());
   }
 
   PrintStatement(Expr expr)
@@ -70,6 +82,16 @@ public:
     visitor.visitBlockStatement(*this);
   }
 
+  virtual Stmt clone() const override
+  {
+    auto cloned_statements = std::vector<Stmt>{};
+    for (auto& stmt : _statements) {
+      cloned_statements.push_back(stmt->clone());
+    }
+
+    return std::make_unique<BlockStatement>(std::move(cloned_statements));
+  }
+
   BlockStatement(std::vector<Stmt> in_statements)
     : _statements(std::move(in_statements))
   {}
@@ -88,7 +110,12 @@ public:
     visitor.visitExpressionStatement(*this);
   }
 
-  ExpressionStatement(Expr expr)
+  virtual Stmt clone() const override
+  {
+    return std::make_unique<ExpressionStatement>(expr->clone());
+  }
+
+  ExpressionStatement(Expr&& expr)
     : expr(std::move(expr))
   {}
 
@@ -107,6 +134,14 @@ public:
   virtual void accept(StatementVisitor& visitor) const override
   {
     visitor.visitIfStatement(*this);
+  }
+
+  virtual Stmt clone() const override
+  {
+    return std::make_unique<IfStatement>(_condition->clone(),
+                                         then_branch->clone(),
+                                         else_branch ? else_branch->clone()
+                                                     : nullptr);
   }
 
   IfStatement(Expr in_condition, Stmt in_then_branch, Stmt in_else_branch)
@@ -132,6 +167,12 @@ public:
     visitor.visitWhileStatement(*this);
   }
 
+  virtual Stmt clone() const override
+  {
+    return std::make_unique<WhileStatement>(_condition->clone(),
+                                            _body->clone());
+  }
+
   WhileStatement(Expr in_condition, Stmt in_body)
     : _condition(std::move(in_condition))
     , _body(std::move(in_body))
@@ -153,6 +194,12 @@ public:
     visitor.visitVarDeclarationStatement(*this);
   }
 
+  virtual Stmt clone() const override
+  {
+    return std::make_unique<VarDeclarationStatement>(_name,
+                                                     _initializer->clone());
+  }
+
   VarDeclarationStatement(Token in_name, Expr in_initializer)
     : _name(in_name)
     , _initializer(std::move(in_initializer))
@@ -161,6 +208,66 @@ public:
 private:
   Token _name;
   Expr _initializer;
+};
+
+class FunctionDeclarationStatement : public Statement
+{
+public:
+  Token const& name() const { return _name; }
+  std::vector<Token> const& params() const { return _params; }
+  std::vector<Stmt> const& body() const { return _body; }
+
+  virtual void accept(StatementVisitor& visitor) const override
+  {
+    visitor.visitFunctionDeclarationStatement(*this);
+  }
+
+  virtual Stmt clone() const override
+  {
+    auto cloned_body = std::vector<Stmt>{};
+    for (auto& stmt : _body) {
+      cloned_body.push_back(stmt->clone());
+    }
+
+    return std::make_unique<FunctionDeclarationStatement>(
+      _name, _params, std::move(cloned_body));
+  }
+
+  FunctionDeclarationStatement(Token in_name,
+                               std::vector<Token> in_params,
+                               std::vector<Stmt> in_body)
+    : _name(std::move(in_name))
+    , _params(in_params)
+    , _body(std::move(in_body))
+  {}
+
+private:
+  Token _name;
+  std::vector<Token> _params;
+  std::vector<Stmt> _body;
+};
+
+class ReturnStatement : public Statement
+{
+public:
+  Expression const& value() const { return *val; }
+
+  virtual void accept(StatementVisitor& visitor) const override
+  {
+    visitor.visitReturnStatement(*this);
+  }
+
+  virtual Stmt clone() const override
+  {
+    return std::make_unique<ReturnStatement>(val->clone());
+  }
+
+  ReturnStatement(Expr&& val)
+    : val(std::move(val))
+  {}
+
+private:
+  Expr val;
 };
 
 } // namespace Lox

@@ -24,6 +24,8 @@ private:
   Stmt ifStatement();
   Stmt whileStatement();
   Stmt forStatement();
+  Stmt function();
+  Stmt returnStatement();
 
   Expr expression();
   Expr assignment();
@@ -35,6 +37,8 @@ private:
   Expr primary();
   Expr orExpr();
   Expr andExpr();
+  Expr call();
+  Expr finishCall(Expr);
 
   bool match(TokenType token_type);
   bool matchOneOf(std::vector<TokenType> token_types);
