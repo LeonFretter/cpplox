@@ -22,6 +22,7 @@ public:
 };
 
 class BlockStatement;
+class ClassDeclarationStatement;
 class ExpressionStatement;
 class PrintStatement;
 class VarDeclarationStatement;
@@ -34,6 +35,8 @@ class StatementVisitor
 {
 public:
   virtual void visitBlockStatement(BlockStatement const&) = 0;
+  virtual void visitClassDeclarationStatement(
+    ClassDeclarationStatement const&) = 0;
   virtual void visitExpressionStatement(ExpressionStatement const&) = 0;
   virtual void visitPrintStatement(PrintStatement const&) = 0;
   virtual void visitVarDeclarationStatement(VarDeclarationStatement const&) = 0;
@@ -98,6 +101,38 @@ public:
 
 private:
   std::vector<Stmt> _statements;
+};
+
+class ClassDeclarationStatement : public Statement
+{
+public:
+  Token const& name() const { return _name; }
+  std::vector<Stmt> const& methods() const { return _methods; }
+
+  virtual void accept(StatementVisitor& visitor) const override
+  {
+    visitor.visitClassDeclarationStatement(*this);
+  }
+
+  virtual Stmt clone() const override
+  {
+    auto cloned_methods = std::vector<Stmt>{};
+    for (auto& method : _methods) {
+      cloned_methods.push_back(method->clone());
+    }
+
+    return std::make_unique<ClassDeclarationStatement>(
+      _name, std::move(cloned_methods));
+  }
+
+  ClassDeclarationStatement(Token in_name, std::vector<Stmt> in_methods)
+    : _name(in_name)
+    , _methods(std::move(in_methods))
+  {}
+
+private:
+  Token _name;
+  std::vector<Stmt> _methods;
 };
 
 class ExpressionStatement : public Statement

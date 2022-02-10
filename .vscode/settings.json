@@ -67,6 +67,10 @@
     "__tuple": "cpp",
     "ios": "cpp",
     "locale": "cpp",
-    "any": "cpp"
+    "any": "cpp",
+    "clocale": "cpp",
+    "map": "cpp",
+    "__split_buffer": "cpp",
+    "__tree": "cpp"
   }
 }

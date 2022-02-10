@@ -1,7 +1,27 @@
 #include <Callable.hpp>
+#include <LoxClass.hpp>
 #include <Object.hpp>
 
 namespace Lox {
+
+std::string
+Object::toString() const
+{
+  if (isNull())
+    return "nil";
+  else if (isNumber()) {
+    return std::to_string(number());
+  } else if (isBoolean()) {
+    return boolean() == true ? "true" : "false";
+  } else if (isCallable()) {
+    return callable().toString();
+  } else if (isClass()) {
+    return klass().toString();
+  } else {
+    // string assumed
+    return string();
+  }
+}
 
 std::string const&
 Object::string() const
@@ -25,6 +45,12 @@ Callable&
 Object::callable() const
 {
   return *_callable;
+}
+
+LoxClass&
+Object::klass() const
+{
+  return *_class;
 }
 
 bool
@@ -57,6 +83,12 @@ Object::isCallable() const noexcept
   return _callable.operator bool();
 }
 
+bool
+Object::isClass() const noexcept
+{
+  return _class.operator bool();
+}
+
 ObjectType
 Object::type() const noexcept
 {
@@ -65,7 +97,8 @@ Object::type() const noexcept
 
 Object::operator bool() const noexcept
 {
-  return str.has_value() || num.has_value() || _boolean.has_value();
+  return str.has_value() || num.has_value() || _boolean.has_value() ||
+         _callable.operator bool() || _class.operator bool();
 }
 
 Object::Object()
@@ -73,6 +106,7 @@ Object::Object()
   , num()
   , _boolean()
   , _callable()
+  , _class()
   , _type(ObjectType::NIL)
 {}
 
@@ -81,6 +115,7 @@ Object::Object(std::string str)
   , num()
   , _boolean()
   , _callable()
+  , _class()
   , _type(ObjectType::STRING)
 {}
 
@@ -89,6 +124,7 @@ Object::Object(double num)
   , num(num)
   , _boolean()
   , _callable()
+  , _class()
   , _type(ObjectType::NUMBER)
 {}
 
@@ -97,6 +133,7 @@ Object::Object(bool boolean)
   , num()
   , _boolean(boolean)
   , _callable()
+  , _class()
   , _type(ObjectType::BOOLEAN)
 {}
 
@@ -105,7 +142,17 @@ Object::Object(std::unique_ptr<Callable> in_callable)
   , num()
   , _boolean()
   , _callable(std::move(in_callable))
+  , _class()
   , _type(ObjectType::CALLABLE)
+{}
+
+Object::Object(std::unique_ptr<LoxClass> in_class)
+  : str()
+  , num()
+  , _boolean()
+  , _callable()
+  , _class(std::move(in_class))
+  , _type(ObjectType::CLASS)
 {}
 
 Object::Object(Object const& orig)
@@ -113,10 +160,14 @@ Object::Object(Object const& orig)
   , num(orig.num)
   , _boolean(orig._boolean)
   , _callable()
+  , _class()
   , _type()
 {
   if (orig._callable) {
     _callable = orig._callable->clone();
+  }
+  if (orig._class) {
+    _class = orig._class->clone();
   }
 }
 
@@ -130,6 +181,10 @@ Object::operator=(Object const& orig)
     _callable = {};
     if (orig._callable) {
       _callable = orig._callable->clone();
+    }
+    _class = {};
+    if (orig._class) {
+      _class = orig._class->clone();
     }
   }
 

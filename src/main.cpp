@@ -6,6 +6,7 @@
 #include <ExpressionPrinter.hpp>
 #include <Interpreter.hpp>
 #include <Parser.hpp>
+#include <Resolver.hpp>
 #include <Scanner.hpp>
 
 std::vector<char>
@@ -38,8 +39,10 @@ run(T const& src, Lox::Interpreter& interpreter)
   auto scanner = Lox::Scanner{ src };
   auto tokens = scanner.scanTokens();
   auto parser = Lox::Parser{ tokens };
-
   auto statements = parser.parse();
+
+  auto resolver = Lox::Resolver{ interpreter };
+  resolver.resolve(statements);
 
   interpreter.interpret(statements);
 }

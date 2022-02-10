@@ -17,7 +17,11 @@ public:
 
   void interpret(std::vector<Stmt> const& statements);
 
+  void resolve(Token const& name, size_t depth);
+
   virtual void visitBlockStatement(BlockStatement const& stmt) override;
+  virtual void visitClassDeclarationStatement(
+    ClassDeclarationStatement const&) override;
 
   virtual void visitExpressionStatement(
     ExpressionStatement const& stmt) override;
@@ -63,6 +67,8 @@ private:
 
   Object evaluate(Expression const& expr);
 
+  Object lookupVariable(Token const& name, Expression const&);
+
   static bool isTruthy(Object const& obj);
 
   static std::string stringify(Object const& obj);
@@ -76,7 +82,9 @@ private:
                                   Object const& rhs);
 
 private:
+  SharedEnv globals;
   SharedEnv env;
+  std::map<std::string, size_t> locals;
 };
 
 } // namespace Lox

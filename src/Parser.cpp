@@ -31,9 +31,28 @@ Parser::block()
 }
 
 Stmt
+Parser::classDeclaration()
+{
+  auto name = consume(TokenType::IDENTIFIER, "Expect class name");
+  consume(TokenType::LEFT_BRACE, "Expect '{' before class body");
+
+  auto methods = std::vector<Stmt>{};
+
+  while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
+    methods.push_back(function());
+  }
+
+  consume(TokenType::RIGHT_BRACE, "Expect '}' after class body");
+
+  return std::make_unique<ClassDeclarationStatement>(name, std::move(methods));
+}
+
+Stmt
 Parser::declaration()
 {
-  if (match(TokenType::FUN))
+  if (match(TokenType::CLASS))
+    return classDeclaration();
+  else if (match(TokenType::FUN))
     return function();
   else if (match(TokenType::VAR))
     return varDeclaration();

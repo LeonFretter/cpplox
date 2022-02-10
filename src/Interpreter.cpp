@@ -2,6 +2,7 @@
 #include <Interpreter.hpp>
 
 #include <Callable.hpp>
+#include <LoxClass.hpp>
 
 namespace Lox {
 
@@ -24,6 +25,12 @@ Interpreter::interpret(std::vector<Stmt> const& statements)
 }
 
 void
+Interpreter::resolve(Token const& name, size_t depth)
+{
+  locals.emplace(name.lexeme(), depth);
+}
+
+void
 Interpreter::visitBlockStatement(BlockStatement const& stmt)
 {
   executeBlock(stmt.statements(), std::make_shared<Environment>(env));
@@ -38,6 +45,7 @@ Interpreter::visitExpressionStatement(ExpressionStatement const& stmt)
 void
 Interpreter::visitPrintStatement(PrintStatement const& stmt)
 {
+  std::cout << "env: " << env->toString() << std::endl;
   auto val = evaluate(stmt.expression());
   std::cout << stringify(val) << std::endl;
 }
@@ -78,6 +86,15 @@ Interpreter::visitFunctionDeclarationStatement(
 }
 
 void
+Interpreter::visitClassDeclarationStatement(
+  ClassDeclarationStatement const& stmt)
+{
+  env->define(stmt.name().lexeme(), Object::null());
+  auto klass = std::make_unique<LoxClass>(stmt.name().lexeme());
+  env->assign(stmt.name(), Object{ std::move(klass) });
+}
+
+void
 Interpreter::visitReturnStatement(ReturnStatement const& stmt)
 {
   throw ReturnValue{ evaluate(stmt.value()) };
@@ -87,7 +104,13 @@ std::any
 Interpreter::visitAssignmentExpression(AssignmentExpression const& expr)
 {
   auto val = evaluate(expr.value());
-  env->assign(expr.name(), val);
+
+  if (locals.contains(expr.name().lexeme())) {
+    env->assignAt(locals.at(expr.name().lexeme()), expr.name(), val);
+  } else {
+    env->assign(expr.name(), val);
+  }
+
   return val;
 }
 
@@ -172,7 +195,7 @@ Interpreter::visitLiteralExpression(LiteralExpression const& expr)
 std::any
 Interpreter::visitVariableExpression(VariableExpression const& expr)
 {
-  return env->get(expr.name());
+  return lookupVariable(expr.name(), expr);
 }
 
 std::any
@@ -204,9 +227,10 @@ Interpreter::visitCallExpression(CallExpression const& expr)
 }
 
 Interpreter::Interpreter()
-  : env(std::make_unique<Environment>())
+  : globals(std::make_shared<Environment>())
+  , env(globals)
 {
-  defineGlobals(*env);
+  defineGlobals(*globals);
 }
 
 void
@@ -219,24 +243,40 @@ void
 Interpreter::executeBlock(std::vector<Stmt> const& statements,
                           SharedEnv block_env)
 {
-  env.swap(block_env);
+  auto prev = env;
 
   try {
+    std::cout << "enter block" << std::endl;
+    env = block_env;
+
     for (auto& stmt : statements) {
       execute(*stmt);
     }
   } catch (std::exception& e) {
-    env.swap(block_env);
+    std::cout << "exit block" << std::endl;
+    env = prev;
     throw;
   }
 
-  env.swap(block_env);
+  std::cout << "exit block" << std::endl;
+  env = prev;
 }
 
 Object
 Interpreter::evaluate(Expression const& expr)
 {
   return std::any_cast<Object>(expr.accept(*this));
+}
+
+Object
+Interpreter::lookupVariable(Token const& name, Expression const& expr)
+{
+  // how does this work after having exited scope??!
+  if (locals.contains(name.lexeme())) {
+    return env->getAt(locals.at(name.lexeme()), name);
+  } else {
+    return globals->get(name);
+  }
 }
 
 bool
@@ -255,18 +295,7 @@ Interpreter::isTruthy(Object const& obj)
 std::string
 Interpreter::stringify(Object const& obj)
 {
-  if (obj.isNull())
-    return "nil";
-  else if (obj.isNumber()) {
-    return std::to_string(obj.number());
-  } else if (obj.isBoolean()) {
-    return obj.boolean() == true ? "true" : "false";
-  } else if (obj.isCallable()) {
-    return obj.callable().toString();
-  } else {
-    // string assumed
-    return obj.string();
-  }
+  return obj.toString();
 }
 
 bool

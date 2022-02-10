@@ -16,6 +16,7 @@ public:
 private:
   std::vector<Stmt> block();
 
+  Stmt classDeclaration();
   Stmt declaration();
   Stmt statement();
   Stmt varDeclaration();
